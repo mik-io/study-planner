@@ -164,8 +164,13 @@
     <dialog id="quiz-dialog" class="modal">
       <form id="quiz-form" method="dialog">
         <div class="modal-heading">
-          <div><p class="eyebrow">QUIZ SCHEDULE</p><h2 id="quiz-dialog-title">小テスト・提出物予定を追加</h2></div>
+          <div><p class="eyebrow">SCHEDULE</p><h2 id="quiz-dialog-title">予定を追加</h2></div>
           <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <div class="schedule-type-switch" role="group" aria-label="予定の種類">
+          <button type="button" class="schedule-type-option selected" data-schedule-type="quiz" aria-pressed="true">小テスト</button>
+          <button type="button" class="schedule-type-option" data-schedule-type="submission" aria-pressed="false">提出物</button>
+          <input name="kind" type="hidden" value="quiz" />
         </div>
         <label>タイトル<input name="title" placeholder="例：英単語テスト / 数学課題提出" maxlength="80" required /></label>
         <label>科目
@@ -185,22 +190,16 @@
         <label>日付<input name="date" type="date" required /></label>
         <label>範囲<input name="scope" placeholder="例：Lesson 3〜5 / p.20〜30" maxlength="120" required /></label>
         <label>範囲の単位 <span class="optional">(任意)</span><input name="unit" placeholder="例：ページ、問、語" maxlength="20" /></label>
-        <label>校時
-          <span class="period-picker">
-            <span class="period-wheel" data-period-wheel role="listbox" aria-label="校時" tabindex="0">
-              <span class="period-wheel-spacer" aria-hidden="true"></span>
-              <button class="period-option selected" type="button" role="option" aria-selected="true" data-period="1">1</button>
-              <button class="period-option" type="button" role="option" aria-selected="false" data-period="2">2</button>
-              <button class="period-option" type="button" role="option" aria-selected="false" data-period="3">3</button>
-              <button class="period-option" type="button" role="option" aria-selected="false" data-period="4">4</button>
-              <button class="period-option" type="button" role="option" aria-selected="false" data-period="5">5</button>
-              <span class="period-wheel-spacer" aria-hidden="true"></span>
-            </span>
-            <span class="period-suffix">校時</span>
-            <input name="period" type="hidden" value="1" />
-          </span>
+        <label id="period-field">校時
+          <select name="period" required>
+            <option value="" selected disabled>校時を選択してください</option>
+            <option value="1">1校時</option>
+            <option value="2">2校時</option>
+            <option value="3">3校時</option>
+            <option value="4">4校時</option>
+            <option value="5">5校時</option>
+          </select>
         </label>
-        <p class="form-hint">数字を上下にスクロールして1〜5校時を選びます。</p>
         <p class="form-error" aria-live="polite"></p>
         <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">予定を保存</button></div>
       </form>

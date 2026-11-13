@@ -35,7 +35,6 @@ let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 let selectedCalendarDate = today;
 let state = loadState();
 let pendingTaskRecord = null;
-
 function createId() {
   return crypto.randomUUID();
 }
@@ -48,8 +47,7 @@ function dateKey(date) {
 }
 
 function shiftDate(dateString, days) {
-  const [year, month, day] = dateString.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+  const [year, month, day] = dateString.split("-").map(Number);  const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + days);
   return dateKey(date);
 }
@@ -233,13 +231,13 @@ function renderGoalCard(goal) {
 }
 
 function renderQuizzes() {
-  const quizzes = [...state.quizzes].sort((a, b) => a.date.localeCompare(b.date) || a.period - b.period);
+  const quizzes = [...state.quizzes].sort((a, b) => a.date.localeCompare(b.date) || (a.period || 99) - (b.period || 99));
   elements.quizzesEmpty.hidden = quizzes.length > 0;
   elements.quizzes.innerHTML = quizzes.map((quiz) => `<article class="quiz-card">
     <div class="quiz-info">
       <p class="card-title">${escapeHtml(quiz.title || "小テスト・提出物")}</p>
       <p class="card-subtitle">${escapeHtml(quiz.scope || "範囲未設定")}${quiz.unit ? ` ${escapeHtml(quiz.unit)}` : ""}</p>
-      <div class="quiz-meta"><span>${formatDate(quiz.date, { month: "numeric", day: "numeric", weekday: "short" })}</span><strong>${quiz.period}<span>校時</span></strong><span class="badge">${escapeHtml(quiz.subject)}</span></div>
+      <div class="quiz-meta"><span>${formatDate(quiz.date, { month: "numeric", day: "numeric", weekday: "short" })}</span>${quiz.period ? `<strong>${quiz.period}<span>校時</span></strong>` : ""}<span class="badge">${escapeHtml(quiz.subject)}</span><span class="badge">${quiz.kind === "submission" ? "提出物" : "小テスト"}</span></div>
     </div>
     <div class="quiz-actions">
       <button class="text-button" type="button" data-add-quiz-task="${escapeHtml(quiz.id)}"${state.tasks.some((task) => task.quizId === quiz.id && task.date === today) ? " disabled" : ""}>${state.tasks.some((task) => task.quizId === quiz.id && task.date === today) ? "ToDo作成済み" : "今日のToDoへ"}</button>
@@ -254,7 +252,7 @@ function getSchedulesForDate(date) {
     .map((event) => ({ kind: "event", event }));
   const quizzes = state.quizzes
     .filter((quiz) => quiz.date === date)
-    .sort((a, b) => a.period - b.period)
+    .sort((a, b) => (a.period || 99) - (b.period || 99))
     .map((quiz) => ({ kind: "quiz", quiz }));
   return [...events, ...quizzes];
 }
@@ -275,7 +273,7 @@ function renderCalendar() {
     cells.push(`<button class="calendar-cell${isToday ? " is-today" : ""}${selected ? " is-selected" : ""}" type="button" role="gridcell" data-calendar-date="${date}" aria-label="${formatDate(date, { year: "numeric", month: "long", day: "numeric", weekday: "long" })}${scheduleCount ? `、予定${scheduleCount}件` : ""}" aria-pressed="${selected}">
       <span class="calendar-day-number">${day}</span>
       ${scheduleCount ? `<span class="calendar-day-count">${scheduleCount}件</span>` : ""}
-      ${schedules.slice(0, 2).map((schedule) => `<span class="calendar-marker ${schedule.kind}">${schedule.kind === "event" ? escapeHtml(schedule.event.title) : `${escapeHtml(schedule.quiz.subject)} ${schedule.quiz.period}校時`}</span>`).join("")}
+      ${schedules.slice(0, 2).map((schedule) => `<span class="calendar-marker ${schedule.kind}">${schedule.kind === "event" ? escapeHtml(schedule.event.title) : `${escapeHtml(schedule.quiz.subject)}${schedule.quiz.period ? ` ${schedule.quiz.period}校時` : ""} ${schedule.quiz.kind === "submission" ? "提出物" : "小テスト"}`}</span>`).join("")}
       ${scheduleCount > 2 ? `<span class="calendar-marker-more">ほか${scheduleCount - 2}件</span>` : ""}
     </button>`);
   }
@@ -294,7 +292,9 @@ function renderCalendarAgenda() {
     }
     const quiz = schedule.quiz;
     const scope = quiz.scope ? `範囲: ${escapeHtml(quiz.scope)}${quiz.unit ? ` ${escapeHtml(quiz.unit)}` : ""}` : "範囲未設定";
-    return `<article class="agenda-item agenda-quiz"><span class="agenda-kind">小テスト・提出物</span><p>${escapeHtml(quiz.subject)} ・ ${quiz.period}校時 ・ ${escapeHtml(quiz.title || "小テスト・提出物")} ・ ${scope}</p></article>`;
+    const kind = quiz.kind === "submission" ? "提出物" : "小テスト";
+    const period = quiz.period ? ` ・ ${quiz.period}校時` : "";
+    return `<article class="agenda-item agenda-quiz"><span class="agenda-kind">${kind}</span><p>${escapeHtml(quiz.subject)}${period} ・ ${escapeHtml(quiz.title || kind)} ・ ${scope}</p></article>`;
   }).join("");
 }
 
@@ -358,22 +358,25 @@ function openDialog(dialog) {
   }
   if (dialog === elements.quizDialog) {
     form.elements.date.value = today;
-    updatePeriodWheel(dialog.querySelector("[data-period-wheel]"), 1);
-    document.querySelector("#quiz-dialog-title").textContent = "小テスト・提出物予定を追加";
+    setScheduleType(form, "quiz");
+    form.elements.period.value = "";
+    document.querySelector("#quiz-dialog-title").textContent = "予定を追加";
   }
   dialog.showModal();
 }
 
-function updatePeriodWheel(wheel, period, behavior = "auto", shouldScroll = true) {
-  const options = [...wheel.querySelectorAll("[data-period]")];
-  const selectedPeriod = Math.max(1, Math.min(options.length, period));
-  options.forEach((option, index) => {
-    const selected = index + 1 === selectedPeriod;
-    option.classList.toggle("selected", selected);
-    option.setAttribute("aria-selected", String(selected));
+function setScheduleType(form, kind) {
+  form.elements.kind.value = kind;
+  const isQuiz = kind === "quiz";
+  const period = form.elements.period;
+  period.required = isQuiz;
+  period.disabled = !isQuiz;
+  document.querySelector("#period-field").hidden = !isQuiz;
+  form.querySelectorAll("[data-schedule-type]").forEach((button) => {
+    const selected = button.dataset.scheduleType === kind;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
   });
-  wheel.closest(".period-picker").querySelector('[name="period"]').value = String(selectedPeriod);
-  if (shouldScroll) wheel.scrollTo({ top: (selectedPeriod - 1) * 40, behavior });
 }
 
 document.addEventListener("click", (event) => {
@@ -422,9 +425,9 @@ document.addEventListener("click", (event) => {
     event.target.closest("dialog").close();
     return;
   }
-  const periodOption = event.target.closest("[data-period]");
-  if (periodOption) {
-    updatePeriodWheel(periodOption.closest("[data-period-wheel]"), Number(periodOption.dataset.period), "smooth");
+  const scheduleTypeButton = event.target.closest("[data-schedule-type]");
+  if (scheduleTypeButton) {
+    setScheduleType(scheduleTypeButton.closest("form"), scheduleTypeButton.dataset.scheduleType);
     return;
   }
   const addQuizTaskButton = event.target.closest("[data-add-quiz-task]");
@@ -434,11 +437,11 @@ document.addEventListener("click", (event) => {
     state.tasks.push({
       id: createId(),
       quizId: quiz.id,
-      title: quiz.title || "小テスト・提出物",
+      title: quiz.title || (quiz.kind === "submission" ? "提出物" : "小テスト"),
       subject: quiz.subject,
       scope: quiz.scope || "",
       scopeUnit: quiz.unit || "",
-      unit: "回",
+      unit: quiz.kind === "submission" ? (quiz.unit || "件") : "回",
       minimum: 1,
       actual: 0,
       date: today,
@@ -453,12 +456,13 @@ document.addEventListener("click", (event) => {
     if (!quiz) return;
     openDialog(elements.quizDialog);
     const form = elements.quizDialog.querySelector("form");
+    setScheduleType(form, quiz.kind === "submission" ? "submission" : "quiz");
     form.elements.title.value = quiz.title || "";
     form.elements.subject.value = quiz.subject;
     form.elements.date.value = quiz.date;
     form.elements.scope.value = quiz.scope || "";
     form.elements.unit.value = quiz.unit || "";
-    updatePeriodWheel(periodWheel, quiz.period);
+    form.elements.period.value = quiz.period ? String(quiz.period) : "";
     document.querySelector("#quiz-dialog-title").textContent = "予定を複製";
     return;
   }
@@ -509,19 +513,6 @@ document.addEventListener("click", (event) => {
   if (carryButton) carryPool(carryButton.dataset.carryPool);
 });
 
-const periodWheel = elements.quizDialog.querySelector("[data-period-wheel]");
-periodWheel.addEventListener("scroll", () => {
-  const selectedPeriod = Math.round(periodWheel.scrollTop / 40) + 1;
-  updatePeriodWheel(periodWheel, selectedPeriod, "auto", false);
-});
-periodWheel.addEventListener("keydown", (event) => {
-  if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
-  event.preventDefault();
-  const current = Number(elements.quizDialog.querySelector('[name="period"]').value);
-  const next = event.key === "Home" ? 1 : event.key === "End" ? 5 : current + (event.key === "ArrowDown" ? 1 : -1);
-  updatePeriodWheel(periodWheel, next, "smooth");
-});
-
 document.querySelectorAll(".quick-amounts").forEach((group) => {
   group.addEventListener("click", (event) => {
     const button = event.target.closest("[data-add]");
@@ -537,17 +528,19 @@ document.querySelector("#quiz-form").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   if (!form.reportValidity()) return;
   const data = new FormData(form);
+  const kind = String(data.get("kind"));
   const title = String(data.get("title")).trim();
   const subject = String(data.get("subject"));
   const date = String(data.get("date"));
   const scope = String(data.get("scope")).trim();
   const unit = String(data.get("unit")).trim();
-  const period = Number(data.get("period"));
-  if (!title || !SUBJECTS.includes(subject) || !date || !scope || !Number.isInteger(period) || period < 1 || period > 5) {
-    showError(form, "タイトル・範囲・科目・日付・1〜5校時を正しく入力してください。");
+  const rawPeriod = String(data.get("period") || "");
+  const period = rawPeriod ? Number(rawPeriod) : null;
+  if (!["quiz", "submission"].includes(kind) || !title || !SUBJECTS.includes(subject) || !date || !scope || (kind === "quiz" && (!Number.isInteger(period) || period < 1 || period > 5)) || (period !== null && (!Number.isInteger(period) || period < 1 || period > 5))) {
+    showError(form, "タイトル・範囲・科目・日付・校時を正しく入力してください。小テストは校時が必須です。");
     return;
   }
-  state.quizzes.push({ id: createId(), title, subject, date, scope, unit, period });
+  state.quizzes.push({ id: createId(), kind, title, subject, date, scope, unit, period });
   if (saveState()) elements.quizDialog.close();
 });
 
