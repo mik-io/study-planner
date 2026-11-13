@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <meta name="description" content="今日やる分だけ決める、柔軟な受験勉強プランナー。" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Study Agile — 今日やる分だけ</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Study Agile ホーム">
+        <span class="brand-mark" aria-hidden="true">s</span>
+        <span>study<span class="brand-light">agile</span></span>
+      </a>
+      <div class="topbar-note"><span class="status-dot"></span>自分のペースで進めよう</div>
+    </header>
+
+    <main class="page-shell">
+      <section class="welcome">
+        <div>
+          <p class="eyebrow" id="today-date"></p>
+          <h1>今日やる分だけ、<span>決めよう。</span></h1>
+          <p class="welcome-copy">予定を詰め込まず、今日の最低ラインから。</p>
+        </div>
+        <div class="welcome-stats" id="today-summary" aria-live="polite"></div>
+      </section>
+
+      <section class="today-section panel" aria-labelledby="today-heading">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">TODAY</p>
+            <h2 id="today-heading">今日のToDo</h2>
+          </div>
+          <span class="section-date" id="today-label"></span>
+        </div>
+        <div id="today-list"></div>
+        <div class="empty-state" id="today-empty">
+          <span class="empty-icon" aria-hidden="true">✳</span>
+          <p class="empty-title">今日の予定はまだありません</p>
+          <p>週間プールから、今日取り組むものを選びましょう。</p>
+          <a class="text-link" href="#weekly-pools">週間プールを見る <span aria-hidden="true">↓</span></a>
+        </div>
+      </section>
+
+      <div class="dashboard-grid">
+        <section class="panel goals-panel" aria-labelledby="goals-heading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">LONG-TERM</p>
+              <h2 id="goals-heading">長期計画</h2>
+            </div>
+            <button class="button button-secondary button-small" type="button" data-open-dialog="goal-dialog">
+              <span aria-hidden="true">＋</span> 目標を追加
+            </button>
+          </div>
+          <div class="card-list" id="goal-list"></div>
+          <p class="muted-empty" id="goal-empty">教材や目標を登録すると、進捗をここで確認できます。</p>
+        </section>
+
+        <section class="panel pools-panel" id="weekly-pools" aria-labelledby="pools-heading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">THIS WEEK'S POOL</p>
+              <h2 id="pools-heading">週間プール</h2>
+            </div>
+            <button class="button button-secondary button-small" type="button" data-open-dialog="pool-dialog">
+              <span aria-hidden="true">＋</span> プールを作成
+            </button>
+          </div>
+          <div class="card-list" id="pool-list"></div>
+          <p class="muted-empty" id="pool-empty">長期計画から、今週進める範囲を決めましょう。</p>
+        </section>
+      </div>
+      <footer class="page-footer">小さく始めて、できた分だけ積み上げる。</footer>
+    </main>
+
+    <dialog id="goal-dialog" class="modal">
+      <form id="goal-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">LONG-TERM</p><h2>長期目標を追加</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <label>教材・目標名<input name="title" placeholder="例：英単語帳" maxlength="80" required /></label>
+        <div class="form-row">
+          <label>単位<input name="unit" placeholder="ページ / 題 / 章" maxlength="12" required /></label>
+          <label>1周あたりの量<input name="total" type="number" min="1" step="1" placeholder="150" required /></label>
+        </div>
+        <div class="form-row">
+          <label>目標周回数<input name="laps" type="number" min="1" step="1" value="1" required /></label>
+          <label>期限日 <span class="optional">(任意)</span><input name="deadline" type="date" /></label>
+        </div>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">目標を保存</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="pool-dialog" class="modal">
+      <form id="pool-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">WEEKLY POOL</p><h2>週間プールを作成</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <label>長期目標<select name="goalId" required></select></label>
+        <label>今週進める量<input name="target" type="number" min="1" step="1" placeholder="30" required /></label>
+        <div class="form-row">
+          <label>開始日<input name="start" type="date" required /></label>
+          <label>終了日<input name="end" type="date" required /></label>
+        </div>
+        <p class="form-hint">日ごとの予定は作らず、期間内に進める量だけを決めます。</p>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">プールを保存</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="task-dialog" class="modal">
+      <form id="task-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">TODAY</p><h2>今日の最低ライン</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <p class="modal-description" id="task-pool-title"></p>
+        <input type="hidden" name="poolId" />
+        <label>今日やる最低量<input name="minimum" type="number" min="1" step="1" value="5" required /></label>
+        <div class="quick-amounts" data-target="minimum">
+          <button type="button" data-add="1">＋1</button><button type="button" data-add="5">＋5</button><button type="button" data-add="10">＋10</button>
+        </div>
+        <p class="form-hint">実際にできた量に上限はありません。</p>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">ToDoに追加</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="complete-dialog" class="modal">
+      <form id="complete-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">NICE WORK</p><h2>実績を記録</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <p class="modal-description" id="complete-task-title"></p>
+        <input type="hidden" name="taskId" />
+        <label>実際にできた量<input name="actual" type="number" min="0" step="1" required /></label>
+        <div class="quick-amounts" data-target="actual">
+          <button type="button" data-add="1">＋1</button><button type="button" data-add="5">＋5</button><button type="button" data-add="10">＋10</button>
+        </div>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">実績を保存</button></div>
+      </form>
+    </dialog>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

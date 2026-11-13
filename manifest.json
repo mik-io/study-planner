@@ -1,0 +1,18 @@
+{
+  "name": "Study Agile",
+  "short_name": "Study Agile",
+  "description": "今日やる分だけ決める、柔軟な受験勉強プランナー。",
+  "lang": "ja",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f7f2",
+  "theme_color": "#f6f7f2",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
