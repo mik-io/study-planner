@@ -12,6 +12,9 @@
   </head>
   <body>
     <header class="topbar">
+      <button class="menu-button" type="button" aria-label="メニューを開く" aria-haspopup="dialog" aria-controls="menu-dialog">
+        <span></span><span></span><span></span>
+      </button>
       <a class="brand" href="#" aria-label="Study Agile ホーム">
         <span class="brand-mark" aria-hidden="true">s</span>
         <span>study<span class="brand-light">agile</span></span>
@@ -47,18 +50,40 @@
       </section>
 
       <div class="dashboard-grid">
-        <section class="panel goals-panel" aria-labelledby="goals-heading">
+        <section class="panel goals-panel" aria-labelledby="events-heading">
           <div class="section-heading">
             <div>
-              <p class="eyebrow">LONG-TERM</p>
-              <h2 id="goals-heading">長期計画</h2>
+              <p class="eyebrow">EVENTS &amp; LONG-TERM</p>
+              <h2 id="events-heading">イベント・長期計画</h2>
             </div>
-            <button class="button button-secondary button-small" type="button" data-open-dialog="goal-dialog">
-              <span aria-hidden="true">＋</span> 目標を追加
+            <button class="button button-secondary button-small" type="button" data-open-dialog="event-dialog">
+              <span aria-hidden="true">＋</span> イベントを追加
             </button>
           </div>
-          <div class="card-list" id="goal-list"></div>
-          <p class="muted-empty" id="goal-empty">教材や目標を登録すると、進捗をここで確認できます。</p>
+          <div class="card-list" id="event-list"></div>
+          <p class="muted-empty" id="event-empty">2ヶ月以内に開始するイベントはありません。</p>
+          <div class="future-events">
+            <div class="future-events-heading">
+              <p class="eyebrow">LATER</p>
+              <h3>今後の予定</h3>
+            </div>
+            <div class="card-list" id="future-event-list"></div>
+            <p class="muted-empty" id="future-event-empty">2ヶ月以上先に始まるイベントはありません。</p>
+          </div>
+        </section>
+
+        <section class="panel quizzes-panel" aria-labelledby="quizzes-heading">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">QUIZ SCHEDULE</p>
+              <h2 id="quizzes-heading">小テスト・提出物予定</h2>
+            </div>
+            <button class="button button-secondary button-small" type="button" data-open-dialog="quiz-dialog">
+              <span aria-hidden="true">＋</span> 予定を追加
+            </button>
+          </div>
+          <div class="card-list" id="quiz-list"></div>
+          <p class="muted-empty" id="quiz-empty">タイトル・科目・日付・校時を登録すると、ここに予定が表示されます。</p>
         </section>
 
         <section class="panel pools-panel" id="weekly-pools" aria-labelledby="pools-heading">
@@ -78,12 +103,131 @@
       <footer class="page-footer">小さく始めて、できた分だけ積み上げる。</footer>
     </main>
 
+    <dialog id="menu-dialog" class="menu-dialog" aria-label="メニュー">
+      <div class="menu-heading">
+        <span>メニュー</span>
+        <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+      </div>
+      <button class="menu-item" type="button" data-menu-calendar>カレンダー <span aria-hidden="true">→</span></button>
+      <button class="menu-item" type="button" data-menu-home>ホーム <span aria-hidden="true">→</span></button>
+    </dialog>
+
+    <dialog id="calendar-dialog" class="calendar-dialog" aria-labelledby="calendar-title">
+      <div class="calendar-header">
+        <div>
+          <p class="eyebrow">SCHEDULE</p>
+          <h2 id="calendar-title">カレンダー</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+      </div>
+      <div class="calendar-toolbar">
+        <button class="calendar-nav" type="button" data-calendar-shift="-1" aria-label="前の月">‹</button>
+        <strong id="calendar-month"></strong>
+        <button class="calendar-nav" type="button" data-calendar-shift="1" aria-label="次の月">›</button>
+        <button class="calendar-today" type="button" data-calendar-today>今日</button>
+      </div>
+      <div class="calendar-weekdays" aria-hidden="true">
+        <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+      </div>
+      <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="月間カレンダー"></div>
+      <section class="calendar-agenda" aria-live="polite">
+        <h3 id="calendar-agenda-title"></h3>
+        <div class="calendar-agenda-list" id="calendar-agenda-list"></div>
+        <p class="muted-empty" id="calendar-agenda-empty">この日の予定はありません。</p>
+      </section>
+    </dialog>
+
+    <dialog id="event-dialog" class="modal">
+      <form id="event-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">EVENT</p><h2>イベントを追加</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <label>イベント名<input name="title" placeholder="例：2学期期末試験" maxlength="80" required /></label>
+        <label>イベントの種類
+          <select name="type" required>
+            <option value="holiday">長期休暇</option>
+            <option value="regular_exam">定期試験</option>
+            <option value="mock_exam">模擬試験</option>
+            <option value="other">その他</option>
+          </select>
+        </label>
+        <div class="form-row">
+          <label>開始日<input name="start" type="date" required /></label>
+          <label>終了日<input name="end" type="date" required /></label>
+        </div>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">イベントを保存</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="quiz-dialog" class="modal">
+      <form id="quiz-form" method="dialog">
+        <div class="modal-heading">
+          <div><p class="eyebrow">QUIZ SCHEDULE</p><h2 id="quiz-dialog-title">小テスト・提出物予定を追加</h2></div>
+          <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
+        </div>
+        <label>タイトル<input name="title" placeholder="例：英単語テスト / 数学課題提出" maxlength="80" required /></label>
+        <label>科目
+          <select name="subject" required>
+            <option value="" selected disabled>科目を選択してください</option>
+            <option value="古漢">古漢</option>
+            <option value="現代文">現代文</option>
+            <option value="数学">数学</option>
+            <option value="英語">英語</option>
+            <option value="物理">物理</option>
+            <option value="化学">化学</option>
+            <option value="歴史">歴史</option>
+            <option value="地理">地理</option>
+            <option value="公共">公共</option>
+          </select>
+        </label>
+        <label>日付<input name="date" type="date" required /></label>
+        <label>範囲<input name="scope" placeholder="例：Lesson 3〜5 / p.20〜30" maxlength="120" required /></label>
+        <label>範囲の単位 <span class="optional">(任意)</span><input name="unit" placeholder="例：ページ、問、語" maxlength="20" /></label>
+        <label>校時
+          <span class="period-picker">
+            <span class="period-wheel" data-period-wheel role="listbox" aria-label="校時" tabindex="0">
+              <span class="period-wheel-spacer" aria-hidden="true"></span>
+              <button class="period-option selected" type="button" role="option" aria-selected="true" data-period="1">1</button>
+              <button class="period-option" type="button" role="option" aria-selected="false" data-period="2">2</button>
+              <button class="period-option" type="button" role="option" aria-selected="false" data-period="3">3</button>
+              <button class="period-option" type="button" role="option" aria-selected="false" data-period="4">4</button>
+              <button class="period-option" type="button" role="option" aria-selected="false" data-period="5">5</button>
+              <span class="period-wheel-spacer" aria-hidden="true"></span>
+            </span>
+            <span class="period-suffix">校時</span>
+            <input name="period" type="hidden" value="1" />
+          </span>
+        </label>
+        <p class="form-hint">数字を上下にスクロールして1〜5校時を選びます。</p>
+        <p class="form-error" aria-live="polite"></p>
+        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">予定を保存</button></div>
+      </form>
+    </dialog>
+
     <dialog id="goal-dialog" class="modal">
       <form id="goal-form" method="dialog">
         <div class="modal-heading">
           <div><p class="eyebrow">LONG-TERM</p><h2>長期目標を追加</h2></div>
           <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
         </div>
+        <p class="modal-description" id="goal-event-title"></p>
+        <input type="hidden" name="eventId" />
+        <label>科目
+          <select name="subject" required>
+            <option value="" selected disabled>科目を選択してください</option>
+            <option value="古漢">古漢</option>
+            <option value="現代文">現代文</option>
+            <option value="数学">数学</option>
+            <option value="英語">英語</option>
+            <option value="物理">物理</option>
+            <option value="化学">化学</option>
+            <option value="歴史">歴史</option>
+            <option value="地理">地理</option>
+            <option value="公共">公共</option>
+          </select>
+        </label>
         <label>教材・目標名<input name="title" placeholder="例：英単語帳" maxlength="80" required /></label>
         <div class="form-row">
           <label>単位<input name="unit" placeholder="ページ / 題 / 章" maxlength="12" required /></label>
@@ -142,12 +286,21 @@
         </div>
         <p class="modal-description" id="complete-task-title"></p>
         <input type="hidden" name="taskId" />
-        <label>実際にできた量<input name="actual" type="number" min="0" step="1" required /></label>
-        <div class="quick-amounts" data-target="actual">
-          <button type="button" data-add="1">＋1</button><button type="button" data-add="5">＋5</button><button type="button" data-add="10">＋10</button>
+        <div id="task-record-inputs">
+          <label>今回できた量<input name="actual" type="number" min="0" step="1" required /></label>
+          <div class="quick-amounts" data-target="actual">
+            <button type="button" data-add="1">＋1</button><button type="button" data-add="5">＋5</button><button type="button" data-add="10">＋10</button>
+          </div>
+        </div>
+        <div class="task-outcome" id="task-outcome" hidden>
+          <p>最低量に達しました。このToDoをどうしますか？</p>
+          <div class="modal-actions">
+            <button class="button button-quiet" type="button" data-task-outcome="keep">残す</button>
+            <button class="button button-primary" type="button" data-task-outcome="complete">完了</button>
+          </div>
         </div>
         <p class="form-error" aria-live="polite"></p>
-        <div class="modal-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">実績を保存</button></div>
+        <div class="modal-actions" id="task-record-actions"><button class="button button-quiet" type="button" data-close-dialog>キャンセル</button><button class="button button-primary" type="submit">実績を記録</button></div>
       </form>
     </dialog>
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = "study-agile-v1";
+const CACHE_NAME = "study-agile-v5";
 const APP_FILES = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
