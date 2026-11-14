@@ -8,30 +8,21 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
-    <title>Study Agile — 今日やる分だけ</title>
+    <title>Study Planner</title>
   </head>
   <body>
     <header class="topbar">
       <button class="menu-button" type="button" aria-label="メニューを開く" aria-haspopup="dialog" aria-controls="menu-dialog">
         <span></span><span></span><span></span>
       </button>
-      <a class="brand" href="#" aria-label="Study Agile ホーム">
+      <a class="brand" href="#" aria-label="Study Planner ホーム">
         <span class="brand-mark" aria-hidden="true">s</span>
-        <span>study<span class="brand-light">agile</span></span>
+        <span>study<span class="brand-light">plaanner/span></span>
       </a>
       <div class="topbar-note"><span class="status-dot"></span>自分のペースで進めよう</div>
     </header>
 
     <main class="page-shell">
-      <section class="welcome">
-        <div>
-          <p class="eyebrow" id="today-date"></p>
-          <h1>今日やる分だけ、<span>決めよう。</span></h1>
-          <p class="welcome-copy">予定を詰め込まず、今日の最低ラインから。</p>
-        </div>
-        <div class="welcome-stats" id="today-summary" aria-live="polite"></div>
-      </section>
-
       <section class="today-section panel" aria-labelledby="today-heading">
         <div class="section-heading">
           <div>
@@ -100,7 +91,6 @@
           <p class="muted-empty" id="pool-empty">長期計画から、今週進める範囲を決めましょう。</p>
         </section>
       </div>
-      <footer class="page-footer">小さく始めて、できた分だけ積み上げる。</footer>
     </main>
 
     <dialog id="menu-dialog" class="menu-dialog" aria-label="メニュー">
@@ -108,8 +98,8 @@
         <span>メニュー</span>
         <button class="icon-button" type="button" data-close-dialog aria-label="閉じる">×</button>
       </div>
-      <button class="menu-item" type="button" data-menu-calendar>カレンダー <span aria-hidden="true">→</span></button>
-      <button class="menu-item" type="button" data-menu-home>ホーム <span aria-hidden="true">→</span></button>
+      <button class="menu-item" type="button" data-menu-homer>ホーム <span aria-hidden="true">→</span></button>
+      <button class="menu-item" type="button" data-menu-calender>カレンダー <span aria-hidden="true">→</span></button>
     </dialog>
 
     <dialog id="calendar-dialog" class="calendar-dialog" aria-labelledby="calendar-title">
