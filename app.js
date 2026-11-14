@@ -232,6 +232,7 @@ function getAccountLoadErrorMessage(error) {
 
 async function loadUserState(user) {
   const generation = ++authLoadGeneration;
+  let loadStage = "Firestoreのドキュメント参照を作成";
   currentUser = user;
   firestoreStateRef = null;
   state = emptyState();
@@ -239,13 +240,16 @@ async function loadUserState(user) {
   setAuthMessage("アカウントのデータを読み込んでいます。");
   try {
     const stateRef = firestoreApi.doc(firestoreDb, "users", user.uid, "planner", "state");
+    loadStage = "Firestoreからユーザーデータを取得";
     const remoteSnapshot = await firestoreApi.getDoc(stateRef);
     if (generation !== authLoadGeneration) return;
 
+    loadStage = "Firestoreのユーザーデータを処理";
     let shouldSeedCloud = false;
     let cloudWriteAt = Date.now();
     if (remoteSnapshot.exists()) {
       const remoteData = remoteSnapshot.data();
+      loadStage = "端末に保存された同期状態を確認";
       const pendingAt = Number(localStorage.getItem(`${PENDING_WRITE_PREFIX}${user.uid}`) || 0);
       const remoteUpdatedAt = Number(remoteData.clientUpdatedAt || 0);
       const cachedState = pendingAt > remoteUpdatedAt
@@ -259,6 +263,7 @@ async function loadUserState(user) {
         state = normalizeState(remoteData.state);
       }
     } else {
+      loadStage = "端末に保存されたユーザーデータを確認";
       const cachedState = readLocalState(`${STORAGE_KEY_PREFIX}${user.uid}`);
       if (cachedState) {
         state = cachedState;
@@ -273,6 +278,7 @@ async function loadUserState(user) {
       }
     }
 
+    loadStage = "端末にユーザーデータを一時保存";
     firestoreStateRef = stateRef;
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}${user.uid}`, JSON.stringify(state));
@@ -281,6 +287,7 @@ async function loadUserState(user) {
     }
 
     if (shouldSeedCloud) {
+      loadStage = "初回データをFirestoreに保存";
       await writeCloudState(stateRef, state, cloudWriteAt);
       clearPendingWrite(user.uid, cloudWriteAt);
       if (legacyDataPendingMigration) {
@@ -293,10 +300,17 @@ async function loadUserState(user) {
     setAuthMessage("同期済み");
     render();
   } catch (error) {
-    console.error("アカウントのデータを読み込めませんでした。", error);
+    console.error("アカウントのデータを読み込めませんでした。", {
+      stage: loadStage,
+      name: error?.name,
+      message: error?.message,
+      code: error?.code,
+      stack: error?.stack,
+      error,
+    });
     if (generation !== authLoadGeneration) return;
     setAuthenticatedView(false);
-    setAuthMessage(getAccountLoadErrorMessage(error), true);
+    setAuthMessage(`${getAccountLoadErrorMessage(error)} [処理: ${loadStage}]`, true);
   }
 }
 
