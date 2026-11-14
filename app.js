@@ -328,7 +328,9 @@ async function initializeAuth() {
     const app = appApi.initializeApp(firebaseConfig);
     firebaseAuth = authApi.getAuth(app);
     firebaseAuthApi = authApi;
-    firestoreDb = dbApi.getFirestore(app);
+    firestoreDb = dbApi.initializeFirestore(app, {
+      experimentalAutoDetectLongPolling: true,
+    });
     firestoreApi = dbApi;
     elements.signInButtons.forEach((button) => { button.disabled = false; });
     setAuthMessage("Googleアカウントでログインしてください。初回利用時は自動で新規登録されます。");
