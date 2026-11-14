@@ -303,7 +303,7 @@ async function initializeAuth() {
     firestoreDb = dbApi.getFirestore(app);
     firestoreApi = dbApi;
     elements.signInButtons.forEach((button) => { button.disabled = false; });
-    setAuthMessage("Googleアカウントでログインしてください。");
+    setAuthMessage("Googleアカウントでログインしてください。初回利用時は自動で新規登録されます。");
     authApi.onAuthStateChanged(firebaseAuth, (user) => {
       if (user) {
         loadUserState(user);
@@ -314,7 +314,7 @@ async function initializeAuth() {
         state = emptyState();
         legacyDataPendingMigration = false;
         setAuthenticatedView(false);
-        setAuthMessage("Googleアカウントでログインしてください。");
+        setAuthMessage("Googleアカウントでログインしてください。初回利用時は自動で新規登録されます。");
       }
     });
   } catch (error) {
@@ -327,7 +327,7 @@ elements.signInButtons.forEach((button) => {
   button.addEventListener("click", async () => {
     if (!firebaseAuth || !firebaseAuthApi) return;
     elements.signInButtons.forEach((signInButton) => { signInButton.disabled = true; });
-    setAuthMessage("Googleアカウントでログインしています。");
+    setAuthMessage("Googleアカウントでログインまたは新規登録しています。");
     try {
       await firebaseAuthApi.signInWithPopup(firebaseAuth, new firebaseAuthApi.GoogleAuthProvider());
     } catch (error) {

@@ -136,7 +136,7 @@ python3 -m http.server 8000
 Googleログインとユーザーごとのクラウド保存を使うには、Firebaseプロジェクトを用意し、次の設定を行います。
 
 1. Firebase ConsoleでWebアプリを登録し、表示されたWebアプリ設定値を `firebase-config.js` に入力します。`apiKey`、`authDomain`、`projectId`、`appId` が必要です。
-2. Authentication の「Sign-in method」で Google を有効にします。アプリを公開するドメインは Authentication の承認済みドメインにも登録してください。
+2. Authentication の「Sign-in method」で Google を有効にします。初めてGoogleログインしたアカウントはFirebase Authenticationに自動登録されます。アプリを公開するドメインは Authentication の承認済みドメインにも登録してください。
 3. Firestore Database を作成し、リポジトリの `firestore.rules` の内容をFirestoreのルールとして公開します。ルールはログインユーザーが自分のUID配下のデータだけ読み書きできるようにします。
 4. HTTPS（またはlocalhost）でアプリを配信します。FirebaseのWeb設定値はブラウザに公開される値です。データ保護はFirestoreルールで行ってください。
 
