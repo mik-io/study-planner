@@ -165,7 +165,7 @@ function renderTasks() {
       <div class="task-main"><p class="card-title">${escapeHtml(title)}</p>
           <p class="task-detail">${escapeHtml(subject)} ・ ${taskState} ・ 最低 ${task.minimum} ${escapeHtml(unit)} ・ 累計 ${recorded} ${escapeHtml(unit)}${details}</p>
       </div>
-        <div class="task-actions">${surplus}${shortfall}${task.completed ? "" : `<button class="task-complete" type="button" data-complete-task="${escapeHtml(task.id)}">${completeLabel}</button>`}</div>
+        <div class="task-actions"><button class="text-button" type="button" data-edit-task="${escapeHtml(task.id)}">編集</button>${surplus}${shortfall}${task.completed ? "" : `<button class="task-complete" type="button" data-complete-task="${escapeHtml(task.id)}">${completeLabel}</button>`}</div>
     </article>`;
   }).join("");
 }
@@ -205,7 +205,7 @@ function renderEventCard(event) {
       <div class="card-top"><div><p class="card-title">${escapeHtml(event.title)}</p><p class="card-subtitle">${eventDates}</p></div>
         <span class="badge">${typeLabel}</span>
       </div>
-      <button class="button button-secondary button-small" type="button" data-add-goal="${escapeHtml(event.id)}">＋ 長期計画を追加</button>
+      <div class="event-actions"><button class="text-button" type="button" data-edit-event="${escapeHtml(event.id)}">編集</button><button class="button button-secondary button-small" type="button" data-add-goal="${escapeHtml(event.id)}">＋ 長期計画を追加</button></div>
     </div>
     <div class="event-goals">${eventGoals.length
       ? eventGoals.map((goal) => renderGoalCard(goal)).join("")
@@ -223,7 +223,7 @@ function renderGoalCard(goal) {
   const deadline = goal.deadline ? `期限 ${formatDate(goal.deadline)}` : "期限なし";
   return `<article class="goal-card">
     <div class="card-top"><div><p class="card-title">${escapeHtml(goal.title)}</p><p class="card-subtitle">${escapeHtml(goal.subject || "科目未設定")} ・ ${escapeHtml(goal.total)} ${escapeHtml(goal.unit)} × ${escapeHtml(goal.laps)}周 ・ ${deadline}</p></div>
-      <span class="badge${percent === 100 ? " complete" : ""}">${status}</span>
+      <div class="goal-actions"><span class="badge${percent === 100 ? " complete" : ""}">${status}</span><button class="text-button" type="button" data-edit-goal="${escapeHtml(goal.id)}">編集</button></div>
     </div>
     <div class="progress-track" role="progressbar" aria-label="${escapeHtml(goal.title)}の進捗" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${percent}%"></div></div>
     <div class="progress-meta"><span>${completed} / ${total} ${escapeHtml(goal.unit)}</span><span>${percent}%</span></div>
@@ -240,6 +240,7 @@ function renderQuizzes() {
       <div class="quiz-meta"><span>${formatDate(quiz.date, { month: "numeric", day: "numeric", weekday: "short" })}</span>${quiz.period ? `<strong>${quiz.period}<span>校時</span></strong>` : ""}<span class="badge">${escapeHtml(quiz.subject)}</span><span class="badge">${quiz.kind === "submission" ? "提出物" : "小テスト"}</span></div>
     </div>
     <div class="quiz-actions">
+      <button class="text-button" type="button" data-edit-quiz="${escapeHtml(quiz.id)}">編集</button>
       <button class="text-button" type="button" data-add-quiz-task="${escapeHtml(quiz.id)}"${state.tasks.some((task) => task.quizId === quiz.id && task.date === today) ? " disabled" : ""}>${state.tasks.some((task) => task.quizId === quiz.id && task.date === today) ? "ToDo作成済み" : "今日のToDoへ"}</button>
       <button class="text-button" type="button" data-duplicate-quiz="${escapeHtml(quiz.id)}">複製</button>
     </div>
@@ -315,7 +316,7 @@ function renderPools() {
       </div>
       <div class="progress-track" role="progressbar" aria-label="${escapeHtml(pool.title)}の進捗" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100"><div class="progress-fill" style="width:${percent}%"></div></div>
       <div class="progress-meta"><span>${pool.completed} / ${pool.target} ${escapeHtml(pool.unit)} 完了</span><span>${percent}%</span></div>
-      <div class="card-footer"><span class="date-range">${formatDate(pool.start)} — ${formatDate(pool.end)}</span><div class="pool-actions">${buttons}</div></div>
+      <div class="card-footer"><span class="date-range">${formatDate(pool.start)} — ${formatDate(pool.end)}</span><div class="pool-actions"><button class="text-button" type="button" data-edit-pool="${escapeHtml(pool.id)}">編集</button>${buttons}</div></div>
     </article>`;
   }).join("");
 }
@@ -340,8 +341,21 @@ function showError(form, message) {
 
 function openDialog(dialog) {
   const form = dialog.querySelector("form");
-  form.reset();
-  showError(form, "");
+  if (form) {
+    form.reset();
+    delete form.dataset.editId;
+    const heading = form.querySelector(".modal-heading h2");
+    const submit = form.querySelector('[type="submit"]');
+    if (heading) {
+      heading.dataset.defaultText ||= heading.textContent;
+      heading.textContent = heading.dataset.defaultText;
+    }
+    if (submit) {
+      submit.dataset.defaultText ||= submit.textContent;
+      submit.textContent = submit.dataset.defaultText;
+    }
+  }
+  if (form) showError(form, "");
   if (dialog === elements.completeDialog) {
     pendingTaskRecord = null;
     document.querySelector("#task-record-inputs").hidden = false;
@@ -349,6 +363,8 @@ function openDialog(dialog) {
     document.querySelector("#task-outcome").hidden = true;
   }
   if (dialog === elements.poolDialog) {
+    form.elements.goalId.disabled = false;
+    form.elements.goalId.required = true;
     form.elements.start.value = today;
     form.elements.end.value = shiftDate(today, 6);
   }
@@ -363,6 +379,15 @@ function openDialog(dialog) {
     document.querySelector("#quiz-dialog-title").textContent = "予定を追加";
   }
   dialog.showModal();
+}
+
+function openEditDialog(dialog, record, heading, submitLabel) {
+  openDialog(dialog);
+  const form = dialog.querySelector("form");
+  form.dataset.editId = record.id;
+  form.querySelector(".modal-heading h2").textContent = heading;
+  form.querySelector('[type="submit"]').textContent = submitLabel;
+  return form;
 }
 
 function setScheduleType(form, kind) {
@@ -423,6 +448,71 @@ document.addEventListener("click", (event) => {
   }
   if (event.target.closest("[data-close-dialog]")) {
     event.target.closest("dialog").close();
+    return;
+  }
+  const editEventButton = event.target.closest("[data-edit-event]");
+  if (editEventButton) {
+    const item = state.events.find((eventItem) => eventItem.id === editEventButton.dataset.editEvent);
+    if (!item) return;
+    const form = openEditDialog(elements.eventDialog, item, "イベントを編集", "変更を保存");
+    form.elements.title.value = item.title;
+    form.elements.type.value = item.type;
+    form.elements.start.value = item.start;
+    form.elements.end.value = item.end;
+    return;
+  }
+  const editGoalButton = event.target.closest("[data-edit-goal]");
+  if (editGoalButton) {
+    const item = state.goals.find((goal) => goal.id === editGoalButton.dataset.editGoal);
+    if (!item) return;
+    const form = openEditDialog(elements.goalDialog, item, "長期目標を編集", "変更を保存");
+    form.elements.eventId.value = item.eventId;
+    form.elements.subject.value = item.subject;
+    form.elements.title.value = item.title;
+    form.elements.unit.value = item.unit;
+    form.elements.total.value = item.total;
+    form.elements.laps.value = item.laps;
+    form.elements.deadline.value = item.deadline || "";
+    const parentEvent = state.events.find((eventItem) => eventItem.id === item.eventId);
+    document.querySelector("#goal-event-title").textContent = `${parentEvent?.title || "イベント未設定"} の長期計画`;
+    return;
+  }
+  const editQuizButton = event.target.closest("[data-edit-quiz]");
+  if (editQuizButton) {
+    const item = state.quizzes.find((quiz) => quiz.id === editQuizButton.dataset.editQuiz);
+    if (!item) return;
+    const form = openEditDialog(elements.quizDialog, item, "予定を編集", "変更を保存");
+    setScheduleType(form, item.kind === "submission" ? "submission" : "quiz");
+    form.elements.title.value = item.title || "";
+    form.elements.subject.value = item.subject;
+    form.elements.date.value = item.date;
+    form.elements.scope.value = item.scope || "";
+    form.elements.unit.value = item.unit || "";
+    form.elements.period.value = item.period ? String(item.period) : "";
+    return;
+  }
+  const editPoolButton = event.target.closest("[data-edit-pool]");
+  if (editPoolButton) {
+    const item = state.pools.find((pool) => pool.id === editPoolButton.dataset.editPool);
+    if (!item) return;
+    const form = openEditDialog(elements.poolDialog, item, "週間プールを編集", "変更を保存");
+    form.querySelector('[type="submit"]').disabled = false;
+    form.elements.goalId.disabled = true;
+    form.elements.goalId.required = false;
+    form.elements.target.value = item.target;
+    form.elements.start.value = item.start;
+    form.elements.end.value = item.end;
+    return;
+  }
+  const editTaskButton = event.target.closest("[data-edit-task]");
+  if (editTaskButton) {
+    const item = state.tasks.find((task) => task.id === editTaskButton.dataset.editTask);
+    if (!item) return;
+    const form = openEditDialog(elements.taskDialog, item, "今日の最低ラインを編集", "変更を保存");
+    form.elements.poolId.value = item.poolId || "";
+    form.elements.minimum.value = item.minimum;
+    const pool = state.pools.find((poolItem) => poolItem.id === item.poolId);
+    document.querySelector("#task-pool-title").textContent = pool ? `${pool.title}（${pool.unit}）` : item.title;
     return;
   }
   const scheduleTypeButton = event.target.closest("[data-schedule-type]");
@@ -540,7 +630,24 @@ document.querySelector("#quiz-form").addEventListener("submit", (event) => {
     showError(form, "タイトル・範囲・科目・日付・校時を正しく入力してください。小テストは校時が必須です。");
     return;
   }
-  state.quizzes.push({ id: createId(), kind, title, subject, date, scope, unit, period });
+  const updatedQuiz = { id: form.dataset.editId || createId(), kind, title, subject, date, scope, unit, period };
+  if (form.dataset.editId) {
+    const index = state.quizzes.findIndex((quiz) => quiz.id === form.dataset.editId);
+    if (index < 0) {
+      showError(form, "編集する予定が見つかりません。");
+      return;
+    }
+    state.quizzes[index] = updatedQuiz;
+    state.tasks.filter((task) => task.quizId === updatedQuiz.id).forEach((task) => {
+      task.title = title;
+      task.subject = subject;
+      task.scope = scope;
+      task.scopeUnit = unit;
+      task.unit = kind === "submission" ? (unit || "件") : "回";
+    });
+  } else {
+    state.quizzes.push(updatedQuiz);
+  }
   if (saveState()) elements.quizDialog.close();
 });
 
@@ -556,13 +663,23 @@ document.querySelector("#event-form").addEventListener("submit", (event) => {
     showError(form, "イベント名と期間を正しく入力してください。");
     return;
   }
-  state.events.push({
-    id: createId(),
+  const updatedEvent = {
+    id: form.dataset.editId || createId(),
     title,
     type: String(data.get("type")),
     start,
     end,
-  });
+  };
+  if (form.dataset.editId) {
+    const index = state.events.findIndex((item) => item.id === form.dataset.editId);
+    if (index < 0) {
+      showError(form, "編集するイベントが見つかりません。");
+      return;
+    }
+    state.events[index] = updatedEvent;
+  } else {
+    state.events.push(updatedEvent);
+  }
   if (saveState()) elements.eventDialog.close();
 });
 
@@ -573,7 +690,7 @@ document.querySelector("#goal-form").addEventListener("submit", (event) => {
   const data = new FormData(form);
   const parentEvent = state.events.find((item) => item.id === data.get("eventId"));
   const goal = {
-    id: createId(),
+    id: form.dataset.editId || createId(),
     eventId: parentEvent?.id,
     subject: String(data.get("subject")),
     title: String(data.get("title")).trim(),
@@ -587,7 +704,23 @@ document.querySelector("#goal-form").addEventListener("submit", (event) => {
     showError(form, "イベント・科目を選択し、教材名・単位・量を正しく入力してください。");
     return;
   }
-  state.goals.push(goal);
+  if (form.dataset.editId) {
+    const index = state.goals.findIndex((item) => item.id === form.dataset.editId);
+    if (index < 0) {
+      showError(form, "編集する長期目標が見つかりません。");
+      return;
+    }
+    goal.completed = state.goals[index].completed || 0;
+    state.goals[index] = goal;
+    state.pools.filter((pool) => pool.goalId === goal.id).forEach((pool) => {
+      pool.goalTitle = goal.title;
+      pool.title = goal.title;
+      pool.subject = goal.subject;
+      pool.unit = goal.unit;
+    });
+  } else {
+    state.goals.push(goal);
+  }
   if (saveState()) elements.goalDialog.close();
 });
 
@@ -596,11 +729,18 @@ document.querySelector("#pool-form").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   if (!form.reportValidity()) return;
   const data = new FormData(form);
+  const editingPool = form.dataset.editId
+    ? state.pools.find((item) => item.id === form.dataset.editId)
+    : null;
   const goal = state.goals.find((item) => item.id === data.get("goalId"));
   const target = Number(data.get("target"));
   const start = String(data.get("start"));
   const end = String(data.get("end"));
-  if (!goal || goal.completed >= goal.total * goal.laps) {
+  if (form.dataset.editId && !editingPool) {
+    showError(form, "編集する週間プールが見つかりません。");
+    return;
+  }
+  if (!form.dataset.editId && (!goal || goal.completed >= goal.total * goal.laps)) {
     showError(form, "有効な長期目標を選択してください。");
     return;
   }
@@ -608,10 +748,16 @@ document.querySelector("#pool-form").addEventListener("submit", (event) => {
     showError(form, "目標量と期間を正しく入力してください。");
     return;
   }
-  state.pools.push({
-    id: createId(), eventId: goal.eventId, goalId: goal.id, goalTitle: goal.title, title: goal.title, subject: goal.subject,
-    unit: goal.unit, start, end, target, completed: 0, status: "active",
-  });
+  if (editingPool) {
+    editingPool.target = target;
+    editingPool.start = start;
+    editingPool.end = end;
+  } else {
+    state.pools.push({
+      id: createId(), eventId: goal.eventId, goalId: goal.id, goalTitle: goal.title, title: goal.title, subject: goal.subject,
+      unit: goal.unit, start, end, target, completed: 0, status: "active",
+    });
+  }
   if (saveState()) elements.poolDialog.close();
 });
 
@@ -619,13 +765,20 @@ document.querySelector("#task-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   if (!form.reportValidity()) return;
+  const editingTask = form.dataset.editId
+    ? state.tasks.find((item) => item.id === form.dataset.editId)
+    : null;
   const pool = state.pools.find((item) => item.id === form.elements.poolId.value);
   const minimum = Number(form.elements.minimum.value);
-  if (!pool || pool.status !== "active" || !Number.isSafeInteger(minimum) || minimum < 1) {
+  if ((form.dataset.editId && !editingTask) || (!form.dataset.editId && (!pool || pool.status !== "active")) || !Number.isSafeInteger(minimum) || minimum < 1) {
     showError(form, "最低量を正しく入力してください。");
     return;
   }
-  state.tasks.push({ id: createId(), poolId: pool.id, title: pool.title, subject: pool.subject, unit: pool.unit, minimum, date: today, completed: false });
+  if (editingTask) {
+    editingTask.minimum = minimum;
+  } else {
+    state.tasks.push({ id: createId(), poolId: pool.id, title: pool.title, subject: pool.subject, unit: pool.unit, minimum, date: today, completed: false });
+  }
   if (saveState()) elements.taskDialog.close();
 });
 
