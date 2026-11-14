@@ -296,6 +296,7 @@ async function loadUserState(user) {
       }
     }
     if (generation !== authLoadGeneration) return;
+    loadStage = "ダッシュボードを表示";
     setAuthenticatedView(true);
     setAuthMessage("同期済み");
     render();

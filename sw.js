@@ -1,4 +1,4 @@
-const CACHE_NAME = "study-agile-v7";
+const CACHE_NAME = "study-agile-v8";
 const APP_FILES = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
