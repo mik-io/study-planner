@@ -216,6 +216,20 @@ function isFirebaseConfigured() {
   ));
 }
 
+function getAccountLoadErrorMessage(error) {
+  if (error?.code === "permission-denied") {
+    return "Firestoreへのアクセスが拒否されました。Firebase ConsoleでプロジェクトとFirestoreルールの公開状態を確認してください。 (permission-denied)";
+  }
+  if (error?.code === "unavailable") {
+    return "Firestoreに接続できません。通信状態を確認して再読み込みしてください。 (unavailable)";
+  }
+  if (error?.code === "failed-precondition") {
+    return "Firestoreの設定を確認できませんでした。Firebase ConsoleでFirestore Databaseが作成済みか確認してください。 (failed-precondition)";
+  }
+  const errorCode = typeof error?.code === "string" ? ` (${error.code})` : "";
+  return `データを読み込めませんでした。通信状態を確認し、再読み込みしてください。${errorCode}`;
+}
+
 async function loadUserState(user) {
   const generation = ++authLoadGeneration;
   currentUser = user;
@@ -282,7 +296,7 @@ async function loadUserState(user) {
     console.error("アカウントのデータを読み込めませんでした。", error);
     if (generation !== authLoadGeneration) return;
     setAuthenticatedView(false);
-    setAuthMessage("データを読み込めませんでした。通信状態とFirebaseの設定を確認し、再読み込みしてください。", true);
+    setAuthMessage(getAccountLoadErrorMessage(error), true);
   }
 }
 
