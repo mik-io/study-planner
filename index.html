@@ -18,10 +18,28 @@
       <a class="brand" href="#" aria-label="Study Planner ホーム">
         <span>study<span class="brand-light">planner</span></span>
       </a>
-      <div class="topbar-note"><span class="status-dot"></span>自分のペースで進めよう</div>
+      <div class="auth-controls">
+        <span class="topbar-note" id="auth-user" hidden></span>
+        <span class="sync-status" id="sync-status" hidden></span>
+        <button class="button button-secondary button-small" type="button" data-google-sign-in hidden>Googleでログイン</button>
+        <button class="button button-quiet button-small" id="google-sign-out" type="button" hidden>ログアウト</button>
+      </div>
     </header>
 
-    <main class="page-shell">
+    <main class="page-shell auth-screen" id="auth-screen">
+      <section class="panel auth-panel" aria-labelledby="auth-heading">
+        <h1 id="auth-heading">ログイン</h1>
+        <p class="auth-message" id="auth-message" role="status" aria-live="polite">認証状態を確認しています。</p>
+        <button class="button button-primary auth-sign-in" type="button" data-google-sign-in disabled>Googleでログイン</button>
+        <button class="button button-quiet auth-sign-in" type="button" data-auth-retry hidden>データを再読み込み</button>
+      </section>
+    </main>
+
+    <main class="page-shell" id="dashboard" hidden>
+      <div class="sync-error" id="sync-error" role="alert" hidden>
+        <span id="sync-error-message"></span>
+        <button class="text-button" type="button" id="retry-sync">再同期</button>
+      </div>
       <section class="today-section panel" aria-labelledby="today-heading">
         <div class="section-heading">
           <div>

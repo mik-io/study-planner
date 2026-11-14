@@ -26,7 +26,19 @@ button { cursor: pointer; }
 .brand-mark { width: 29px; height: 29px; display: grid; place-items: center; background: var(--green); color: white; border-radius: 9px; font-size: 19px; font-weight: 700; font-style: italic; }
 .topbar-note { margin-left: auto; color: #75847c; font-size: 12px; }
 .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; background: #72b38c; border-radius: 50%; }
+.auth-controls { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.auth-controls .topbar-note { margin-left: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sync-status { color: #75847c; font-size: 10px; }
+.sync-status.error { color: #b84d42; }
+.sync-error { margin: 0 0 16px; padding: 11px 14px; border: 1px solid #f0d7d2; border-radius: 9px; color: #a64b40; background: #fff7f5; font-size: 12px; line-height: 1.6; }
 .page-shell { max-width: 1120px; margin: 0 auto; padding: 45px 24px 24px; }
+.auth-screen { display: grid; min-height: calc(100vh - 66px); place-items: center; padding-top: 24px; padding-bottom: 24px; }
+.auth-panel { width: min(520px, 100%); padding: 38px; }
+.auth-panel h1 { margin-bottom: 12px; }
+.auth-message { min-height: 22px; margin: 20px 0 12px; color: #738078; font-size: 12px; line-height: 1.7; }
+.auth-message.error { color: #b84d42; }
+.auth-sign-in { min-width: 180px; }
+[hidden] { display: none !important; }
 .welcome { min-height: 145px; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; }
 .eyebrow { margin: 0 0 8px; color: #8d9992; font-size: 10px; font-weight: 700; letter-spacing: 1.45px; }
 h1, h2, p { margin-top: 0; }
@@ -168,6 +180,11 @@ button.calendar-cell:hover { background: #f7faf6; }
 
 @media (max-width: 700px) {
   .topbar { height: 58px; padding: 0 18px; }
+  .auth-controls { gap: 6px; }
+  .auth-controls .topbar-note { max-width: 95px; font-size: 10px; }
+  .sync-status { display: none; }
+  .auth-screen { min-height: calc(100vh - 58px); }
+  .auth-panel { padding: 27px 22px; }
   .menu-dialog { top: 66px; left: 12px; }
   .topbar-note { font-size: 10px; }
   .page-shell { padding: 25px 14px 16px; }

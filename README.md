@@ -131,6 +131,15 @@ python3 -m http.server 8000
 
 ブラウザで `http://localhost:8000` を開いてください。Service Workerによるオフライン機能とホーム画面への追加にはHTTPS（またはlocalhost）が必要です。
 
-### MVPの保存・認証について
+### Firebaseの設定
 
-現在のデータ保存先はブラウザの `localStorage` です。同じブラウザ内では再読み込み後もデータが残りますが、端末間同期・Googleログイン・Firestoreへの保存はまだ行いません。Firebaseのプロジェクト設定後に、READMEのデータ設計に沿って認証とFirestoreを接続する想定です。
+Googleログインとユーザーごとのクラウド保存を使うには、Firebaseプロジェクトを用意し、次の設定を行います。
+
+1. Firebase ConsoleでWebアプリを登録し、表示されたWebアプリ設定値を `firebase-config.js` に入力します。`apiKey`、`authDomain`、`projectId`、`appId` が必要です。
+2. Authentication の「Sign-in method」で Google を有効にします。アプリを公開するドメインは Authentication の承認済みドメインにも登録してください。
+3. Firestore Database を作成し、リポジトリの `firestore.rules` の内容をFirestoreのルールとして公開します。ルールはログインユーザーが自分のUID配下のデータだけ読み書きできるようにします。
+4. HTTPS（またはlocalhost）でアプリを配信します。FirebaseのWeb設定値はブラウザに公開される値です。データ保護はFirestoreルールで行ってください。
+
+アプリの保存先は `users/{uid}/planner/state` です。イベント・長期目標・予定・週間プール・ToDoを1つの状態ドキュメントとして保存します。初回ログイン時、Firestoreにまだデータがない場合は、このブラウザに残っている旧 `localStorage` データをそのGoogleアカウントへ一度だけ移行します。Firestoreにデータがある場合はクラウド側を優先します。ログアウトすると画面上のデータは消え、別アカウントのデータは表示されません。
+
+保存操作はFirestoreへの書き込みが失敗した場合、画面上部に同期エラーを表示します。Firebase未設定時はログインできないため、上記の設定を先に完了してください。

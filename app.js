@@ -1,7 +1,23 @@
-const STORAGE_KEY = "study-agile-state-v1";
+import { firebaseConfig } from "./firebase-config.js";
+
+const LEGACY_STORAGE_KEY = "study-agile-state-v1";
+const STORAGE_KEY_PREFIX = "study-agile-state-v1:";
+const PENDING_WRITE_PREFIX = "study-agile-pending-write-v1:";
+const FIREBASE_VERSION = "11.10.0";
 const SUBJECTS = ["古漢", "現代文", "数学", "英語", "物理", "化学", "歴史", "地理", "公共"];
 
 const elements = {
+  authScreen: document.querySelector("#auth-screen"),
+  authMessage: document.querySelector("#auth-message"),
+  authUser: document.querySelector("#auth-user"),
+  syncStatus: document.querySelector("#sync-status"),
+  signInButtons: document.querySelectorAll("[data-google-sign-in]"),
+  signOutButton: document.querySelector("#google-sign-out"),
+  retryButton: document.querySelector("[data-auth-retry]"),
+  dashboard: document.querySelector("#dashboard"),
+  syncError: document.querySelector("#sync-error"),
+  syncErrorMessage: document.querySelector("#sync-error-message"),
+  retrySyncButton: document.querySelector("#retry-sync"),
   date: document.querySelector("#today-date"),
   dateLabel: document.querySelector("#today-label"),
   summary: document.querySelector("#today-summary"),
@@ -33,8 +49,17 @@ const elements = {
 const today = dateKey(new Date());
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let selectedCalendarDate = today;
-let state = loadState();
+let state = emptyState();
 let pendingTaskRecord = null;
+let currentUser = null;
+let firebaseAuth = null;
+let firebaseAuthApi = null;
+let firestoreDb = null;
+let firestoreStateRef = null;
+let firestoreApi = null;
+let saveQueue = Promise.resolve();
+let legacyDataPendingMigration = false;
+let authLoadGeneration = 0;
 function createId() {
   return crypto.randomUUID();
 }
@@ -59,47 +84,291 @@ function addMonths(date, months) {
   return result;
 }
 
-function loadState() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const events = Array.isArray(stored.events) ? stored.events : [];
-    const goals = Array.isArray(stored.goals) ? stored.goals : [];
-    const ungroupedGoals = goals.filter((goal) => !events.some((event) => event.id === goal.eventId));
-    if (ungroupedGoals.length) {
-      const legacyEvent = {
-        id: createId(),
-        title: "イベント未設定の長期計画",
-        type: "other",
-        start: "",
-        end: "",
-      };
-      events.push(legacyEvent);
-      ungroupedGoals.forEach((goal) => { goal.eventId = legacyEvent.id; });
-    }
-    return {
-      events,
-      goals,
-      quizzes: Array.isArray(stored.quizzes) ? stored.quizzes : [],
-      pools: Array.isArray(stored.pools) ? stored.pools : [],
-      tasks: Array.isArray(stored.tasks) ? stored.tasks : [],
+function emptyState() {
+  return { events: [], goals: [], quizzes: [], pools: [], tasks: [] };
+}
+
+function normalizeState(stored) {
+  stored = stored && typeof stored === "object" ? stored : {};
+  const events = Array.isArray(stored.events) ? stored.events : [];
+  const goals = Array.isArray(stored.goals) ? stored.goals : [];
+  const ungroupedGoals = goals.filter((goal) => !events.some((event) => event.id === goal.eventId));
+  if (ungroupedGoals.length) {
+    const legacyEvent = {
+      id: createId(),
+      title: "イベント未設定の長期計画",
+      type: "other",
+      start: "",
+      end: "",
     };
+    events.push(legacyEvent);
+    ungroupedGoals.forEach((goal) => { goal.eventId = legacyEvent.id; });
+  }
+  return {
+    events,
+    goals,
+    quizzes: Array.isArray(stored.quizzes) ? stored.quizzes : [],
+    pools: Array.isArray(stored.pools) ? stored.pools : [],
+    tasks: Array.isArray(stored.tasks) ? stored.tasks : [],
+  };
+}
+
+function readLocalState(key) {
+  try {
+    const value = localStorage.getItem(key);
+    return value === null ? null : normalizeState(JSON.parse(value));
   } catch (error) {
     console.error("保存データを読み込めませんでした。", error);
-    return { events: [], goals: [], quizzes: [], pools: [], tasks: [] };
+    throw new Error("このブラウザに保存されたデータを読み込めませんでした。", { cause: error });
   }
 }
 
 function saveState() {
+  if (!currentUser || !firestoreStateRef) return false;
+  const updatedAt = Date.now();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${currentUser.uid}`, JSON.stringify(state));
+    localStorage.setItem(`${PENDING_WRITE_PREFIX}${currentUser.uid}`, String(updatedAt));
   } catch (error) {
     console.error("データを保存できませんでした。", error);
-    window.alert("データを保存できませんでした。ブラウザの空き容量をご確認ください。");
-    return false;
+    setAuthMessage("この端末の一時保存に失敗しました。クラウドへの保存を試みています。", true);
   }
   render();
+  const user = currentUser;
+  const stateRef = firestoreStateRef;
+  const snapshot = JSON.parse(JSON.stringify(state));
+  queueCloudWrite(user, stateRef, snapshot, updatedAt);
   return true;
 }
+
+function queueCloudWrite(user, stateRef, data, updatedAt) {
+  saveQueue = saveQueue
+    .then(() => writeCloudState(stateRef, data, updatedAt))
+    .then(() => {
+      clearPendingWrite(user.uid, updatedAt);
+      if (currentUser?.uid === user.uid) setAuthMessage("同期済み");
+      if (legacyDataPendingMigration) {
+        removeLegacyData();
+        legacyDataPendingMigration = false;
+      }
+    })
+    .catch((error) => {
+      console.error("Firestoreへのデータ保存に失敗しました。", error);
+      if (currentUser?.uid === user.uid) {
+        setAuthMessage("クラウドへの同期に失敗しました。通信状態を確認して再同期してください。", true);
+      }
+    });
+  return saveQueue;
+}
+
+async function writeCloudState(stateRef, data, updatedAt = Date.now()) {
+  await firestoreApi.setDoc(stateRef, {
+    state: data,
+    clientUpdatedAt: updatedAt,
+    updatedAt: firestoreApi.serverTimestamp(),
+  });
+}
+
+function clearPendingWrite(uid, updatedAt) {
+  const key = `${PENDING_WRITE_PREFIX}${uid}`;
+  try {
+    if (Number(localStorage.getItem(key)) === updatedAt) localStorage.removeItem(key);
+  } catch (error) {
+    console.error("同期済み状態を更新できませんでした。", error);
+  }
+}
+
+function removeLegacyData() {
+  try {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+  } catch (error) {
+    console.error("移行済みデータをブラウザから削除できませんでした。", error);
+  }
+}
+
+function setAuthMessage(message, isError = false) {
+  elements.authMessage.textContent = message;
+  elements.authMessage.classList.toggle("error", isError);
+  elements.syncStatus.textContent = message;
+  elements.syncStatus.classList.toggle("error", isError);
+  elements.syncErrorMessage.textContent = message;
+  elements.syncError.hidden = !isError || !currentUser || elements.dashboard.hidden;
+}
+
+function setAuthenticatedView(isReady) {
+  elements.authScreen.hidden = isReady;
+  elements.dashboard.hidden = !isReady;
+  elements.authUser.hidden = !currentUser;
+  elements.authUser.textContent = currentUser?.displayName || currentUser?.email || "";
+  elements.authUser.title = currentUser?.email || "";
+  elements.syncStatus.hidden = !currentUser;
+  elements.signOutButton.hidden = !currentUser;
+  elements.signInButtons.forEach((button) => {
+    button.hidden = Boolean(currentUser);
+    button.disabled = !firebaseAuth || Boolean(currentUser);
+  });
+  elements.retryButton.hidden = !currentUser || isReady;
+}
+
+function isFirebaseConfigured() {
+  return ["apiKey", "authDomain", "projectId", "appId"].every((key) => (
+    typeof firebaseConfig[key] === "string" && firebaseConfig[key].trim().length > 0
+  ));
+}
+
+async function loadUserState(user) {
+  const generation = ++authLoadGeneration;
+  currentUser = user;
+  firestoreStateRef = null;
+  state = emptyState();
+  setAuthenticatedView(false);
+  setAuthMessage("アカウントのデータを読み込んでいます。");
+  try {
+    const stateRef = firestoreApi.doc(firestoreDb, "users", user.uid, "planner", "state");
+    const remoteSnapshot = await firestoreApi.getDoc(stateRef);
+    if (generation !== authLoadGeneration) return;
+
+    let shouldSeedCloud = false;
+    let cloudWriteAt = Date.now();
+    if (remoteSnapshot.exists()) {
+      const remoteData = remoteSnapshot.data();
+      const pendingAt = Number(localStorage.getItem(`${PENDING_WRITE_PREFIX}${user.uid}`) || 0);
+      const remoteUpdatedAt = Number(remoteData.clientUpdatedAt || 0);
+      const cachedState = pendingAt > remoteUpdatedAt
+        ? readLocalState(`${STORAGE_KEY_PREFIX}${user.uid}`)
+        : null;
+      if (cachedState) {
+        state = cachedState;
+        shouldSeedCloud = true;
+        cloudWriteAt = pendingAt;
+      } else {
+        state = normalizeState(remoteData.state);
+      }
+    } else {
+      const cachedState = readLocalState(`${STORAGE_KEY_PREFIX}${user.uid}`);
+      if (cachedState) {
+        state = cachedState;
+        shouldSeedCloud = true;
+      } else {
+        const legacyState = readLocalState(LEGACY_STORAGE_KEY);
+        if (legacyState) {
+          state = legacyState;
+          legacyDataPendingMigration = true;
+          shouldSeedCloud = true;
+        }
+      }
+    }
+
+    firestoreStateRef = stateRef;
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${user.uid}`, JSON.stringify(state));
+    } catch (error) {
+      console.error("データの一時保存に失敗しました。", error);
+    }
+
+    if (shouldSeedCloud) {
+      await writeCloudState(stateRef, state, cloudWriteAt);
+      clearPendingWrite(user.uid, cloudWriteAt);
+      if (legacyDataPendingMigration) {
+        removeLegacyData();
+        legacyDataPendingMigration = false;
+      }
+    }
+    if (generation !== authLoadGeneration) return;
+    setAuthenticatedView(true);
+    setAuthMessage("同期済み");
+    render();
+  } catch (error) {
+    console.error("アカウントのデータを読み込めませんでした。", error);
+    if (generation !== authLoadGeneration) return;
+    setAuthenticatedView(false);
+    setAuthMessage("データを読み込めませんでした。通信状態とFirebaseの設定を確認し、再読み込みしてください。", true);
+  }
+}
+
+async function initializeAuth() {
+  if (!isFirebaseConfigured()) {
+    setAuthMessage("Firebaseの設定が必要です。READMEの「Firebaseの設定」を参照してください。", true);
+    return;
+  }
+  try {
+    const [appApi, authApi, dbApi] = await Promise.all([
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-app.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-auth.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/firebase-firestore.js`),
+    ]);
+    const app = appApi.initializeApp(firebaseConfig);
+    firebaseAuth = authApi.getAuth(app);
+    firebaseAuthApi = authApi;
+    firestoreDb = dbApi.getFirestore(app);
+    firestoreApi = dbApi;
+    elements.signInButtons.forEach((button) => { button.disabled = false; });
+    setAuthMessage("Googleアカウントでログインしてください。");
+    authApi.onAuthStateChanged(firebaseAuth, (user) => {
+      if (user) {
+        loadUserState(user);
+      } else {
+        authLoadGeneration += 1;
+        currentUser = null;
+        firestoreStateRef = null;
+        state = emptyState();
+        legacyDataPendingMigration = false;
+        setAuthenticatedView(false);
+        setAuthMessage("Googleアカウントでログインしてください。");
+      }
+    });
+  } catch (error) {
+    console.error("Firebaseを初期化できませんでした。", error);
+    setAuthMessage("Firebaseを初期化できませんでした。設定とネットワークを確認してください。", true);
+  }
+}
+
+elements.signInButtons.forEach((button) => {
+  button.addEventListener("click", async () => {
+    if (!firebaseAuth || !firebaseAuthApi) return;
+    elements.signInButtons.forEach((signInButton) => { signInButton.disabled = true; });
+    setAuthMessage("Googleアカウントでログインしています。");
+    try {
+      await firebaseAuthApi.signInWithPopup(firebaseAuth, new firebaseAuthApi.GoogleAuthProvider());
+    } catch (error) {
+      console.error("Googleログインに失敗しました。", error);
+      setAuthMessage("Googleログインに失敗しました。もう一度お試しください。", true);
+    } finally {
+      elements.signInButtons.forEach((signInButton) => {
+        signInButton.disabled = !firebaseAuth || Boolean(currentUser);
+      });
+    }
+  });
+});
+
+elements.signOutButton.addEventListener("click", async () => {
+  if (!firebaseAuth || !firebaseAuthApi) return;
+  elements.signOutButton.disabled = true;
+  try {
+    await firebaseAuthApi.signOut(firebaseAuth);
+  } catch (error) {
+    console.error("ログアウトに失敗しました。", error);
+    setAuthMessage("ログアウトに失敗しました。もう一度お試しください。", true);
+  } finally {
+    elements.signOutButton.disabled = false;
+  }
+});
+
+elements.retryButton.addEventListener("click", () => {
+  if (currentUser) loadUserState(currentUser);
+});
+
+elements.retrySyncButton.addEventListener("click", () => {
+  if (!currentUser || !firestoreStateRef) return;
+  const user = currentUser;
+  const updatedAt = Date.now();
+  try {
+    localStorage.setItem(`${PENDING_WRITE_PREFIX}${user.uid}`, String(updatedAt));
+  } catch (error) {
+    console.error("再同期状態を一時保存できませんでした。", error);
+  }
+  queueCloudWrite(user, firestoreStateRef, JSON.parse(JSON.stringify(state)), updatedAt);
+});
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (character) => ({
@@ -841,7 +1110,8 @@ document.querySelectorAll("dialog").forEach((dialog) => {
   });
 });
 
-render();
+setAuthenticatedView(false);
+initializeAuth();
 scheduleEventRefresh();
 
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
