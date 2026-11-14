@@ -18,7 +18,6 @@ const elements = {
   syncError: document.querySelector("#sync-error"),
   syncErrorMessage: document.querySelector("#sync-error-message"),
   retrySyncButton: document.querySelector("#retry-sync"),
-  date: document.querySelector("#today-date"),
   dateLabel: document.querySelector("#today-label"),
   summary: document.querySelector("#today-summary"),
   tasks: document.querySelector("#today-list"),
@@ -295,11 +294,6 @@ async function loadUserState(user) {
         legacyDataPendingMigration = false;
       }
     }
-    if (generation !== authLoadGeneration) return;
-    loadStage = "ダッシュボードを表示";
-    setAuthenticatedView(true);
-    setAuthMessage("同期済み");
-    render();
   } catch (error) {
     console.error("アカウントのデータを読み込めませんでした。", {
       stage: loadStage,
@@ -312,7 +306,12 @@ async function loadUserState(user) {
     if (generation !== authLoadGeneration) return;
     setAuthenticatedView(false);
     setAuthMessage(`${getAccountLoadErrorMessage(error)} [処理: ${loadStage}]`, true);
+    return;
   }
+  if (generation !== authLoadGeneration) return;
+  setAuthenticatedView(true);
+  setAuthMessage("同期済み");
+  render();
 }
 
 async function initializeAuth() {
@@ -425,8 +424,6 @@ function taskMeetsMinimum(task, amount) {
 }
 
 function render() {
-  const date = new Date();
-  elements.date.textContent = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(date);
   elements.dateLabel.textContent = formatDate(today, { month: "long", day: "numeric", weekday: "short" });
   renderTasks();
   renderEvents();
